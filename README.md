@@ -17,8 +17,31 @@ pimd also has a homepage, mainly to distribute releases:
 
 pimd is primarily developed on Linux and should work as-is out of the
 box on all major distributions.  Other UNIX variants should also work,
-but are not as thoroughly tested.  See the file `config.mk` for details
-on support and various tricks needed.
+but are not as thoroughly tested.  For some tips and details, see the
+`configure` script.
+
+
+Building
+--------
+
+When building pimd from source you first need to run the `configure`
+script to generate the file `config.mk`.  The script relies on Bourne
+shell standard features as well as expr and uname.  Any optional pimd
+features, such as `--enable-scoped-acls` are activated here as well.
+
+**Example:**
+
+    ./configure --enable-scoped-acls
+    make
+
+    sudo make install
+
+The Makefile supports de facto standard environment variables such as
+`prefix` and `DESTDIR` for the install process.  E.g., to install pimd
+to `/usr` instead of the default `/usr/local`, but redirect to a binary
+package directory in `/tmp`:
+
+    VERSION=2.2.0-1 prefix=/usr DESTDIR=/tmp/pimd-2.2.0-1 make clean install
 
 
 Configuration
