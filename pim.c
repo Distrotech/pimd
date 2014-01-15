@@ -393,8 +393,8 @@ void send_pim_unicast(char *buf, int mtu, u_int32 src, u_int32 dst, int type, in
 		      inet_fmt(src, s1, sizeof(s1)), inet_fmt(dst, s2, sizeof(s2)));
 	    }
 #endif
-            logit(LOG_DEBUG, 0, "SENT %s from %-15s to %s",
-		  packet_kind(IPPROTO_PIM, type, 0),
+            logit(LOG_DEBUG, 0, "SENT %s (len: %-5d) from %-15s to %s",
+		  packet_kind(IPPROTO_PIM, type, 0), sendlen,
 		  inet_fmt(src, s1, sizeof(s1)), inet_fmt(dst, s2, sizeof(s2)));
 	}
     }
