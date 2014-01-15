@@ -400,11 +400,14 @@ void send_pim_unicast(char *buf, int mtu, u_int32 src, u_int32 dst, int type, in
     }
 }
 
-/* Split it in half and recursively send each half */
+/*
+ * Split in fragments according to MTU (or even better, use PMTU) and
+ * recursively send each fragment.
+ */
 static int send_fragment(char *buf, size_t len, size_t mtu, struct sockaddr *dst, size_t salen)
 {
     struct ip *next, *ip = (struct ip *)buf;
-    size_t fraglen, remlen, offset;
+    size_t fraglen, offset;
 
     if (!mtu)
 	mtu = IP_MSS;
@@ -416,9 +419,14 @@ static int send_fragment(char *buf, size_t len, size_t mtu, struct sockaddr *dst
 
     ip->ip_len = htons(fraglen);
     offset     = ntohs(ip->ip_off);		/* keep flags */
-    remlen     = len - fraglen;
-    if (remlen)
+    len	       = len - fraglen;			/* remaining data */
+    if (len)
 	ip->ip_off = htons(offset | IP_MF);
+
+    IF_DEBUG(DEBUG_PIM_REGISTER) {
+	logit(LOG_INFO, 0, "Sending fragmented unicast: fraglen = %-4d (mtu: %-4d) to %s",
+	      fraglen, mtu, inet_fmt(ip->ip_dst.s_addr, s1, sizeof(s1)));
+    }
 
     /* send first fragment */
     while (sendto(pim_socket, ip, fraglen, 0, dst, salen) < 0) {
@@ -441,17 +449,19 @@ static int send_fragment(char *buf, size_t len, size_t mtu, struct sockaddr *dst
     }
 
     /* send reminder */
-    if (remlen) {
+    if (len) {
+	size_t ipsz = sizeof(struct ip);
+	size_t datalen = fraglen - ipsz;
+
 	/* Update data pointers */
-	len  = remlen - sizeof(struct ip);
-	next = (struct ip *)(buf + len);
-	memcpy(next, ip, sizeof(struct ip));
+	next   = (struct ip *)(buf + datalen);
+	memcpy(next, ip, ipsz);
 
 	/* Update IP header */
-	next->ip_len = htons(remlen);
-	next->ip_off = htons(offset + (len >> 3));
+	next->ip_len = htons(len);
+	next->ip_off = htons(offset + (datalen >> 3));
 
-	return send_fragment((char *)next, remlen, mtu, dst, salen);
+	return send_fragment((char *)next, len + ipsz, mtu, dst, salen);
     }
 
     return 0;
