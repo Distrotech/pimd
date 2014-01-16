@@ -451,15 +451,14 @@ static int send_fragment(char *buf, size_t len, size_t mtu, struct sockaddr *dst
     /* send reminder */
     if (len) {
 	size_t ipsz = sizeof(struct ip);
-	size_t datalen = fraglen - ipsz;
 
 	/* Update data pointers */
-	next   = (struct ip *)(buf + datalen);
+	next   = (struct ip *)(buf + fraglen - ipsz);
 	memcpy(next, ip, ipsz);
 
 	/* Update IP header */
-	next->ip_len = htons(len);
-	next->ip_off = htons(offset + (datalen >> 3));
+	next->ip_len = htons(len + ipsz);
+	next->ip_off = htons(offset + (len >> 3));
 
 	return send_fragment((char *)next, len + ipsz, mtu, dst, salen);
     }
