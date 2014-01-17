@@ -423,12 +423,9 @@ static int send_frame(char *buf, size_t len, size_t mtu, struct sockaddr *dst, s
 	ip->ip_off = htons(offset | IP_MF);
 
     IF_DEBUG(DEBUG_PIM_REGISTER) {
-	if (len)
-	    logit(LOG_INFO, 0, "Sending fragmented unicast: fraglen = %-4d (mtu: %-4d) to %s",
-		  fraglen, mtu, inet_fmt(ip->ip_dst.s_addr, s1, sizeof(s1)));
-	else
-	    logit(LOG_INFO, 0, "Sending unicast: len = %d to %s",
-		  len, inet_fmt(ip->ip_dst.s_addr, s1, sizeof(s1)));
+	logit(LOG_INFO, 0, "Sending %-4d bytes %sunicast (MTU %-4d) to %s",
+	      fraglen, len ? "fragmented " : "", mtu,
+	      inet_fmt(ip->ip_dst.s_addr, s1, sizeof(s1)));
     }
 
     /* send first fragment */
