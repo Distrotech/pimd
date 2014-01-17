@@ -422,6 +422,9 @@ static int send_frame(char *buf, size_t len, size_t mtu, struct sockaddr *dst, s
     if (len) {
 	dofrag = 1;
 	ip->ip_off = htons(offset | IP_MF);
+    } else {
+	dofrag = 0;
+	ip->ip_off = htons(offset & ~IP_MF);
     }
 
     IF_DEBUG(DEBUG_PIM_REGISTER) {
@@ -463,7 +466,7 @@ static int send_frame(char *buf, size_t len, size_t mtu, struct sockaddr *dst, s
 
 	/* Update IP header */
 	next->ip_len = htons(len + ipsz);
-	next->ip_off = htons(offset + (len >> 3));
+	next->ip_off = htons(offset + (fraglen >> 3));
 
 	return send_frame((char *)next, len + ipsz, mtu, dst, salen);
     }
