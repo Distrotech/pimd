@@ -33,6 +33,8 @@
 
 #include "defs.h"
 
+#define SEND_DEBUG_NUMBER 50	/* For throttling log messages */
+
 /*
  * Exported variables.
  */
@@ -45,6 +47,13 @@ int	pim_socket;		/* socket for PIM control msgs */
 #ifdef RAW_OUTPUT_IS_RAW
 extern int curttl;
 #endif /* RAW_OUTPUT_IS_RAW */
+
+/*
+ * Local variables.
+ */
+static u_int16 ip_id = 0;
+//static u_int pim_send_cnt = 0;
+
 
 /*
  * Local function definitions.
@@ -84,13 +93,13 @@ void init_pim(void)
     ip->ip_v     = IPVERSION;
     ip->ip_hl    = (sizeof(struct ip) >> 2);
     ip->ip_tos   = 0;    /* TODO: setup?? */
-    ip->ip_id    = 0;	 /* let kernel fill in */
+    ip->ip_id    = 0;    /* Make sure to update ID field, maybe fragmenting below */
     ip->ip_off   = 0;
     ip->ip_p     = IPPROTO_PIM;
 #ifdef old_Linux
-    ip->ip_csum = 0;		/* let kernel fill in */
+    ip->ip_csum  = 0;		/* let kernel fill in */
 #else
-    ip->ip_sum = 0;		/* let kernel fill in */
+    ip->ip_sum   = 0;		/* let kernel fill in */
 #endif /* old_Linux */
 
     if (register_input_handler(pim_socket, pim_read) < 0)
@@ -225,37 +234,38 @@ void send_pim(char *buf, u_int32 src, u_int32 dst, int type, int datalen)
     struct sockaddr_in sdst;
     struct ip *ip;
     pim_header_t *pim;
-    int sendlen;
+    int sendlen = sizeof(struct ip) + sizeof(pim_header_t) + datalen;
     int setloop = 0;
 
     /* Prepare the IP header */
     ip		       = (struct ip *)buf;
-    ip->ip_id	 = 0;	 /* let kernel fill in */
-    ip->ip_off	 = 0;
-    ip->ip_len	       = sizeof(struct ip) + sizeof(pim_header_t) + datalen;
+    ip->ip_id	       = htons(++ip_id);
+    ip->ip_off	       = 0;
+    ip->ip_ttl	       = MAXTTL;	    /* Applies to unicast only */
+#if defined(RAW_OUTPUT_IS_RAW) || defined(OpenBSD)
+    ip->ip_len	       = htons(sendlen);
+#else
+    ip->ip_len	       = sendlen;
+#endif
     ip->ip_src.s_addr  = src;
     ip->ip_dst.s_addr  = dst;
-    ip->ip_ttl	       = MAXTTL;	    /* applies to unicast only */
-    sendlen	       = ip->ip_len;
-#if defined(RAW_OUTPUT_IS_RAW) || defined(OpenBSD)
-    ip->ip_len	       = htons(ip->ip_len);
-#endif /* RAW_OUTPUT_IS_RAW || OpenBSD */
 
     /* Prepare the PIM packet */
     pim		       = (pim_header_t *)(buf + sizeof(struct ip));
-    pim->pim_type      = type;
     pim->pim_vers      = PIM_PROTOCOL_VERSION;
+    pim->pim_type      = type;
     pim->pim_reserved  = 0;
     pim->pim_cksum     = 0;
+
     /* TODO: XXX: if start using this code for PIM_REGISTERS, exclude the
      * encapsulated packet from the checsum.
      */
-    pim->pim_cksum     = inet_cksum((u_int16 *)pim,
-				    sizeof(pim_header_t) + datalen);
+    pim->pim_cksum     = inet_cksum((u_int16 *)pim, sizeof(pim_header_t) + datalen);
 
     if (IN_MULTICAST(ntohl(dst))) {
 	k_set_if(pim_socket, src);
-	if ((dst == allhosts_group) || (dst == allrouters_group) ||
+	if ((dst == allhosts_group) ||
+	    (dst == allrouters_group) ||
 	    (dst == allpimrouters_group)) {
 	    setloop = 1;
 	    k_set_loop(pim_socket, TRUE);
@@ -273,6 +283,7 @@ void send_pim(char *buf, u_int32 src, u_int32 dst, int type, int datalen)
     sdst.sin_len = sizeof(sdst);
 #endif
     sdst.sin_addr.s_addr = dst;
+
     while (sendto(pim_socket, buf, sendlen, 0, (struct sockaddr *)&sdst, sizeof(sdst)) < 0) {
 	if (errno == EINTR)
 	    continue;		/* Received signal, retry syscall. */
@@ -307,9 +318,6 @@ void send_pim(char *buf, u_int32 src, u_int32 dst, int type, int datalen)
     }
 }
 
-u_int pim_send_cnt = 0;
-#define SEND_DEBUG_NUMBER 50
-
 
 /* TODO: This can be merged with the above procedure */
 /*
@@ -318,54 +326,45 @@ u_int pim_send_cnt = 0;
  */
 void send_pim_unicast(char *buf, int mtu, u_int32 src, u_int32 dst, int type, int datalen)
 {
-    static int ip_identification = 0;
     struct sockaddr_in sdst;
     struct ip *ip;
     pim_header_t *pim;
-    int sendlen, result;
+    int result, sendlen = sizeof(struct ip) + sizeof(pim_header_t) + datalen;
 
     /* Prepare the IP header */
     ip		       = (struct ip *)buf;
-    ip->ip_len	       = sizeof(struct ip) + sizeof(pim_header_t) + datalen;
-    /* We control the IP ID field for unicast msgs due to maybe fragmenting */
-    ip->ip_id = htons(++ip_identification);
+    ip->ip_id	       = htons(++ip_id);
+    ip->ip_off	       = 0;
+    ip->ip_ttl	       = MAXTTL; /* TODO: XXX: setup the TTL from the inner mcast packet? */
+#if defined(RAW_OUTPUT_IS_RAW) || defined(OpenBSD)
+    ip->ip_len	       = htons(sendlen);
+#else
+    ip->ip_len	       = sendlen;
+#endif
     ip->ip_src.s_addr  = src;
     ip->ip_dst.s_addr  = dst;
-    sendlen	       = ip->ip_len;
-    /* TODO: XXX: setup the TTL from the inner mcast packet? */
-    ip->ip_ttl	       = MAXTTL;
-#if defined(RAW_OUTPUT_IS_RAW) || defined(OpenBSD)
-    ip->ip_len	       = htons(ip->ip_len);
-#endif /* RAW_OUTPUT_IS_RAW || OpenBSD */
 
     /* Prepare the PIM packet */
-    pim			   = (pim_header_t *)(buf + sizeof(struct ip));
-    pim->pim_vers	   = PIM_PROTOCOL_VERSION;
-    pim->pim_type	   = type;
-    pim->pim_reserved	   = 0;
-    pim->pim_cksum	   = 0;
+    pim		       = (pim_header_t *)(buf + sizeof(struct ip));
+    pim->pim_vers      = PIM_PROTOCOL_VERSION;
+    pim->pim_type      = type;
+    pim->pim_reserved  = 0;
+    pim->pim_cksum     = 0;
 
-    /* XXX: The PIM_REGISTERs don't include the encapsulated
-     * inner packet in the checksum.
-     * Well, try to explain this to cisco...
-     * If your RP is cisco and if it shows many PIM_REGISTER checksum
-     * errors from this router, then #define BROKEN_CISCO_CHECKSUM here
-     * or in your Makefile.
-     * Note that such checksum is not in the spec, and such PIM_REGISTERS
-     * may be dropped by some implementations (pimd should be OK).
-     */
+    /* The PIM_REGISTERs don't include the encapsulated inner packet in
+     * the checksum.  Older (much older) Cisco routers messed up here.
+     * If your RP is a Cisco, and if it shows many PIM_REGISTER checksum
+     * errors from us, define BROKEN_CISCO_CHECKSUM in the Makefile (see
+     * the configure script).  It is however strongly recommended to
+     * upgrade the Cisco router to a newer firmware. */
 #ifdef BROKEN_CISCO_CHECKSUM
-    pim->pim_cksum	= inet_cksum((u_int16 *)pim, sizeof(pim_header_t)
-				     + datalen);
-#else /* !BROKEN_CISCO_CHECKSUM */
-    if (PIM_REGISTER == type) {
-	pim->pim_cksum	= inet_cksum((u_int16 *)pim, sizeof(pim_header_t)
-				     + sizeof(pim_register_t));
-    } else {
-	pim->pim_cksum	= inet_cksum((u_int16 *)pim, sizeof(pim_header_t)
-				     + datalen);
-    }
-#endif /* !BROKEN_CISCO_CHECKSUM */
+    pim->pim_cksum	= inet_cksum((u_int16 *)pim, sizeof(pim_header_t) + datalen);
+#else
+    if (PIM_REGISTER == type)
+	pim->pim_cksum	= inet_cksum((u_int16 *)pim, sizeof(pim_header_t) + sizeof(pim_register_t));
+    else
+	pim->pim_cksum	= inet_cksum((u_int16 *)pim, sizeof(pim_header_t) + datalen);
+#endif
 
     memset(&sdst, 0, sizeof(sdst));
     sdst.sin_family = AF_INET;

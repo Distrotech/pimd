@@ -679,9 +679,9 @@ int send_pim_register(char *packet)
     int		reg_mtu, pktlen = 0;
     char       *buf;
 
-    ip = (struct ip *)packet;
+    ip     = (struct ip *)packet;
     source = ip->ip_src.s_addr;
-    group = ip->ip_dst.s_addr;
+    group  = ip->ip_dst.s_addr;
 
     if ((vifi = find_vif_direct_local(source)) == NO_VIF)
 	return FALSE;
@@ -747,7 +747,6 @@ int send_pim_register(char *packet)
 #else
 	ip->ip_sum = inet_cksum((u_int16 *)ip, ip->ip_hl << 2);
 #endif /* old_Linux */
-
 #endif /* PIM_OLD_KERNEL */
 
 	buf = pim_send_buf + sizeof(struct ip) + sizeof(pim_header_t);
