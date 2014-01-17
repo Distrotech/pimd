@@ -406,7 +406,7 @@ void send_pim_unicast(char *buf, int mtu, u_int32 src, u_int32 dst, int type, in
 static int send_frame(char *buf, size_t len, size_t mtu, struct sockaddr *dst, size_t salen)
 {
     struct ip *next, *ip = (struct ip *)buf;
-    size_t fraglen, offset, dofrag = 0;
+    size_t fraglen, offset;
 
     if (!mtu)
 	mtu = IP_MSS;
@@ -419,16 +419,11 @@ static int send_frame(char *buf, size_t len, size_t mtu, struct sockaddr *dst, s
     ip->ip_len = htons(fraglen);
     offset     = ntohs(ip->ip_off);		/* keep flags */
     len	       = len - fraglen;			/* remaining data */
-    if (len) {
-	dofrag = 1;
+    if (len)
 	ip->ip_off = htons(offset | IP_MF);
-    } else {
-	dofrag = 0;
-	ip->ip_off = htons(offset & ~IP_MF);
-    }
 
     IF_DEBUG(DEBUG_PIM_REGISTER) {
-	if (dofrag)
+	if (len)
 	    logit(LOG_INFO, 0, "Sending fragmented unicast: fraglen = %-4d (mtu: %-4d) to %s",
 		  fraglen, mtu, inet_fmt(ip->ip_dst.s_addr, s1, sizeof(s1)));
 	else
@@ -457,7 +452,7 @@ static int send_frame(char *buf, size_t len, size_t mtu, struct sockaddr *dst, s
     }
 
     /* send reminder */
-    if (dofrag) {
+    if (len) {
 	size_t ipsz = sizeof(struct ip);
 
 	/* Update data pointers */
