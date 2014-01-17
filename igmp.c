@@ -187,7 +187,7 @@ static void accept_igmp(ssize_t recvlen)
     }
 
     IF_DEBUG(DEBUG_PKT | debug_kind(IPPROTO_IGMP, igmp->igmp_type, igmp->igmp_code)) {
-	logit(LOG_DEBUG, 0, "RECV %d bytes %s from %-15s to %s", recvlen,
+	logit(LOG_DEBUG, 0, "RECV %5d bytes %s from %-15s to %s", recvlen,
 	      packet_kind(IPPROTO_IGMP, igmp->igmp_type, igmp->igmp_code),
 	      inet_fmt(src, s1, sizeof(s1)), inet_fmt(dst, s2, sizeof(s2)));
     }
@@ -372,7 +372,7 @@ void send_igmp(char *buf, u_int32 src, u_int32 dst, int type, int code, u_int32 
 	 k_set_loop(igmp_socket, FALSE);
 
      IF_DEBUG(DEBUG_PKT|debug_kind(IPPROTO_IGMP, type, code)) {
-	 logit(LOG_DEBUG, 0, "SENT %d bytes %s from %-15s to %s", sendlen,
+	 logit(LOG_DEBUG, 0, "SENT %5d bytes %s from %-15s to %s", sendlen,
 	       packet_kind(IPPROTO_IGMP, type, code),
 	       src == INADDR_ANY_N ? "INADDR_ANY" :
 	       inet_fmt(src, s1, sizeof(s1)), inet_fmt(dst, s2, sizeof(s2)));
