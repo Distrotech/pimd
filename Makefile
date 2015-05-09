@@ -52,7 +52,7 @@ include snmp.mk
 
 ## Common
 CFLAGS       += $(MCAST_INCLUDE) $(SNMPDEF) $(RSRRDEF) $(INCLUDES) $(DEFS) $(USERCOMPILE)
-CFLAGS       += -O2 -W -Wall -Werror -fno-strict-aliasing
+CFLAGS       += -O2 -W -fno-strict-aliasing
 #CFLAGS       += -O -g
 LDLIBS        = $(SNMPLIBDIR) $(SNMPLIBS) $(EXTRA_LIBS)
 OBJS          = $(IGMP_OBJS) $(ROUTER_OBJS) $(PIM_OBJS) $(DVMRP_OBJS) \
@@ -65,7 +65,7 @@ DISTFILES     = README README.config README.config.jp README.debug \
 		TODO CREDITS FAQ AUTHORS
 
 LINT          = splint
-LINTFLAGS     = $(MCAST_INCLUDE) $(filter-out -W -Wall -Werror, $(CFLAGS)) -posix-lib -weak -skipposixheaders
+LINTFLAGS     = $(MCAST_INCLUDE) $(filter-out -W, $(CFLAGS)) -posix-lib -weak -skipposixheaders
 
 PURIFY        = purify
 PURIFYFLAGS   = -cache-dir=/tmp -collector=/import/pkgs/gcc/lib/gcc-lib/sparc-sun-sunos4.1.3_U1/2.7.2.2/ld
