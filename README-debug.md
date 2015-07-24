@@ -22,19 +22,19 @@ This file contains some hints how to debug your multicast routing.
 
    - On Linux:
 
-        CONFIG_IP_MROUTE=y
-        CONFIG_IP_PIMSM_V1=y
-        CONFIG_IP_PIMSM_V2=y
-		CONFIG_IP_MROUTE_MULTIPLE_TABLES=y    # Optional
+                CONFIG_IP_MROUTE=y
+                CONFIG_IP_PIMSM_V1=y
+                CONFIG_IP_PIMSM_V2=y
+                CONFIG_IP_MROUTE_MULTIPLE_TABLES=y    # Optional
 
      Check the list of multicast capable interfaces:
 
-		cat /proc/net/dev_mcast
+                cat /proc/net/dev_mcast
 
    - On *BSD:
 
-		options	MROUTING		 # Multicast routing
-		options	PIM              # Enable for pimd
+                options    MROUTING         # Multicast routing
+                options    PIM              # Enable for pimd
 
    - Start the multicast routing daemon in debug mode.  E.g., `pimd -dall`
 	 or if you just want to see some subystems: `pimd -drpf,mrt -s7`
@@ -45,25 +45,25 @@ This file contains some hints how to debug your multicast routing.
 
 	 - On Linux:
 
-			cat /proc/net/ip_mr_vif
+                cat /proc/net/ip_mr_vif
 
 	 - On *BSD:
 
-			netstat -gn
+                netstat -gn
 
  - Is multicast forwarding enabled on those vifs:
 
 	 - On Linux:
 
-			sysctl net.ipv4.conf.eth0.mc_forwarding
+                sysctl net.ipv4.conf.eth0.mc_forwarding
 
 	   For each of the enabled interfaces.  If it returns zero, the
 	   multicast forwarding on that interface is not working.
 
 	 - On *BSD:
 
-			sysctl net.inet.ip.forwarding
-			sysctl net.inet.ip.mforwarding      # Only OpenBSD
+                sysctl net.inet.ip.forwarding
+                sysctl net.inet.ip.mforwarding      # Only OpenBSD
 
  - Is the PIM multicast routing daemon exchanging `PIM_HELLO` messages
    with its neighbors?  Look into the debug messages output; if
@@ -84,9 +84,9 @@ This file contains some hints how to debug your multicast routing.
  
 	 - On Linux:
 
-			cat /proc/net/ip_mr_cache
+                cat /proc/net/ip_mr_cache
 
 	 - On *BSD:
 
-			netstat -gn
+                netstat -gn
 
